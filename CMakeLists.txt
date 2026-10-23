@@ -40,6 +40,14 @@ target_compile_definitions(HandMap PRIVATE
 # Find external libraries
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
+find_path(FAST_CPP_CSV_PARSER_INCLUDE_DIRS
+        NAMES fast-cpp-csv-parser/csv.h
+        REQUIRED
+)
+target_include_directories(HandMap PRIVATE
+        ${PROJECT_SOURCE_DIR}/include
+        ${FAST_CPP_CSV_PARSER_INCLUDE_DIRS}
+)
 
 # Link external libraries
 target_link_libraries(HandMap PRIVATE
