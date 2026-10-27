@@ -1,12 +1,17 @@
+// .hpp
+// Hand Gesture Mapping Visualizer
+// by Kyle Furey
 
 #include <iostream>
 #include <cassert>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <glm/glm.hpp>
 #include <fast-cpp-csv-parser/csv.h>
-#include <HandMap/DataFrame.hpp>
+#include <DataFrame.hpp>
 
 using namespace std;
+using namespace glm;
 using namespace io;
 using namespace handmap;
 

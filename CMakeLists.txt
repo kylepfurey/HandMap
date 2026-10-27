@@ -1,3 +1,6 @@
+# .txt
+# Hand Gesture Mapping CMake Configuration
+# by Kyle Furey
 
 # Initialize CMake
 cmake_minimum_required(VERSION 4.3)
@@ -40,6 +43,7 @@ target_compile_definitions(HandMap PRIVATE
 # Find external libraries
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 find_path(FAST_CPP_CSV_PARSER_INCLUDE_DIRS
         NAMES fast-cpp-csv-parser/csv.h
         REQUIRED
@@ -53,4 +57,5 @@ target_include_directories(HandMap PRIVATE
 target_link_libraries(HandMap PRIVATE
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
+        glm::glm
 )
