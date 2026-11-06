@@ -51,6 +51,14 @@ find_path(FAST_CPP_CSV_PARSER_INCLUDE_DIRS
 target_include_directories(HandMap PRIVATE
         ${PROJECT_SOURCE_DIR}/include
         ${FAST_CPP_CSV_PARSER_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        ${PROJECT_SOURCE_DIR}/extern/openpose/include
+)
+find_package(OpenCV REQUIRED)
+find_library(OPENPOSE_LIBRARY
+        NAMES openpose
+        HINTS ${PROJECT_SOURCE_DIR}/extern/openpose/build/src/openpose
+        REQUIRED
 )
 
 # Link external libraries
@@ -58,4 +66,6 @@ target_link_libraries(HandMap PRIVATE
         SDL3::SDL3
         SDL3_ttf::SDL3_ttf
         glm::glm
+        ${OpenCV_LIBS}
+        ${OPENPOSE_LIBRARY}
 )

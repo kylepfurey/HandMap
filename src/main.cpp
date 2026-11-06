@@ -8,6 +8,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <glm/glm.hpp>
 #include <fast-cpp-csv-parser/csv.h>
+#include <openpose/headers.hpp>
 #include <DataFrame.hpp>
 
 using namespace std;
