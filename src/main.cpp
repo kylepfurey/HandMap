@@ -3,24 +3,30 @@
 // by Kyle Furey
 
 #include <iostream>
-#include <cassert>
+#include <sstream>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <glm/glm.hpp>
 #include <fast-cpp-csv-parser/csv.h>
+#include <opencv2/core.hpp>
 #include <openpose/headers.hpp>
 #include <DataFrame.hpp>
+#include <Hand.hpp>
 
 using namespace std;
 using namespace glm;
 using namespace io;
+using namespace cv;
+using namespace op;
 using namespace handmap;
 
 /** Constants */
-static constexpr float WINDOW_WIDTH = 1920.0f;
-static constexpr float WINDOW_HEIGHT = 1080.0f;
-static constexpr char FONT_NAME[] = "calibri.ttf";
-static constexpr int FONT_SIZE = 64;
+namespace handmap {
+    static constexpr float WINDOW_WIDTH = 1920.0f;
+    static constexpr float WINDOW_HEIGHT = 1080.0f;
+    static constexpr char FONT_NAME[] = "calibri.ttf";
+    static constexpr int FONT_SIZE = 64;
+}
 
 /** Demo program */
 int main(int argc, char *argv[]) {
@@ -50,8 +56,24 @@ int main(int argc, char *argv[]) {
     SDL_Texture *camera_texture = nullptr;
     TTF_Font *font = TTF_OpenFont(FONT_NAME, FONT_SIZE);
 
+    // Initialize openpose
+    Wrapper openpose{ThreadManagerMode::Asynchronous};
+    WrapperStructPose op_pose;
+    op_pose.poseMode = PoseMode::Disabled;
+    WrapperStructHand op_hand;
+    op_hand.enable = true;
+    op_hand.detector = Detector::Provided;
+    openpose.configure(op_pose);
+    openpose.configure(op_hand);
+    openpose.start();
+    Hand left_hand{};
+    Hand right_hand{};
+
     // Event loop
     bool run = true;
+    float camera_width = 1.0f;
+    float camera_height = 1.0f;
+    bool capture = false;
     SDL_Event event;
     while (run) {
         // Handle input
@@ -63,8 +85,15 @@ int main(int argc, char *argv[]) {
                     run = false;
                     break;
                 case SDL_EVENT_KEY_DOWN:
-                    if (event.key.key == SDLK_ESCAPE) {
-                        run = false;
+                    switch (event.key.key) {
+                        default:
+                            break;
+                        case SDLK_ESCAPE:
+                            run = false;
+                            break;
+                        case SDLK_SPACE:
+                            capture = true;
+                            break;
                     }
                     break;
             }
@@ -86,21 +115,67 @@ int main(int argc, char *argv[]) {
         // Render camera frame to screen
         SDL_Surface *camera_surface = SDL_AcquireCameraFrame(camera, nullptr);
         if (camera_surface != nullptr) {
+            camera_width = static_cast<float>(camera_surface->w);
+            camera_height = static_cast<float>(camera_surface->h);
             if (camera_texture != nullptr) {
                 SDL_DestroyTexture(camera_texture);
             }
             camera_texture = SDL_CreateTextureFromSurface(renderer, camera_surface);
-            // TODO - Get gesture data from camera frame
+            // Scan for hands on screen
+            if (capture) {
+                capture = false;
+                Hand::scan(openpose, camera_surface, left_hand, right_hand);
+            }
             SDL_ReleaseCameraFrame(camera, camera_surface);
         }
         if (camera_texture != nullptr) {
             SDL_RenderTexture(renderer, camera_texture, nullptr, nullptr);
         }
 
+        // Render left and right hand joints to the screen
+        auto draw_hand = [=](const Hand &hand) {
+            SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.thumb[0].x, hand.thumb[0].y);
+            SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.index[0].x, hand.index[0].y);
+            SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.middle[0].x, hand.middle[0].y);
+            SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.ring[0].x, hand.ring[0].y);
+            SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.pinky[0].x, hand.pinky[0].y);
+            for (int i = 0; i < 3; ++i) {
+                SDL_RenderLine(renderer, hand.thumb[i].x, hand.thumb[i].y, hand.thumb[i + 1].x, hand.thumb[i + 1].y);
+                SDL_RenderLine(renderer, hand.index[i].x, hand.index[i].y, hand.index[i + 1].x, hand.index[i + 1].y);
+                SDL_RenderLine(renderer, hand.middle[i].x, hand.middle[i].y, hand.middle[i + 1].x, hand.middle[i + 1].y);
+                SDL_RenderLine(renderer, hand.ring[i].x, hand.ring[i].y, hand.ring[i + 1].x, hand.ring[i + 1].y);
+                SDL_RenderLine(renderer, hand.pinky[i].x, hand.pinky[i].y, hand.pinky[i + 1].x, hand.pinky[i + 1].y);
+            }
+        };
+        if (left_hand.valid) {
+            SDL_SetRenderScale(renderer, window_width / camera_width, window_height / camera_height);
+            SDL_SetRenderDrawColorFloat(renderer, 0.0f, 0.0f, 1.0f, 1.0f);
+            draw_hand(left_hand);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+        if (right_hand.valid) {
+            SDL_SetRenderScale(renderer, window_width / camera_width, window_height / camera_height);
+            SDL_SetRenderDrawColorFloat(renderer, 1.0f, 0.0f, 0.0f, 1.0f);
+            draw_hand(right_hand);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+        }
+
         // Render gesture name to screen
+        stringstream text;
+        if (left_hand.valid) {
+            if (right_hand.valid) {
+                text << "Both Hands Found"; // TODO - Replace with gesture names
+            } else {
+                text << "Left Hand Found"; // TODO - Replace with gesture names
+            }
+        } else if (right_hand.valid) {
+            text << "Right Hand Found"; // TODO - Replace with gesture names
+        } else {
+            text << "No Hands On Screen";
+        }
         SDL_Surface *text_surface = TTF_RenderText_Blended(
             font,
-            "Gesture", // TODO - Replace with gesture name
+            text.str().c_str(),
             0,
             SDL_Color{255, 255, 255, 255}
         );

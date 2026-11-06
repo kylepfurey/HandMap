@@ -1,6 +1,8 @@
 # Hand Map
 C++ algorithm for mapping real-time hand gestures to IEEE data.
 
+![Hand Map](resources/handmap.png)
+
 ## References
 [Hand Gesture Data](https://ieee-dataport.org/documents/hand-gesture-data)
 
