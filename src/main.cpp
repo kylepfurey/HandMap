@@ -27,8 +27,8 @@ namespace handmap {
     static constexpr float WINDOW_HEIGHT = 1080.0f;
     static constexpr char FONT_NAME[] = "calibri.ttf";
     static constexpr int FONT_SIZE = 64;
-    constexpr float TOLERANCE_RADS = 0.3f;
-    constexpr float TOLERANCE_DEGREES = 45.0f;
+    constexpr float RADS_TOLERANCE = 0.3f;
+    constexpr float ERROR_TOLERANCE = 0.25f;
 }
 
 /** Demo program */
@@ -50,7 +50,7 @@ int main() {
         average += length(data.g[4]);
         average += length(data.g[5]);
         average /= 6;
-        if (average <= TOLERANCE_RADS) {
+        if (average <= RADS_TOLERANCE) {
             averages[j][0] += data.a[0];
             averages[j][1] += data.a[1];
             averages[j][2] += data.a[2];
@@ -67,6 +67,14 @@ int main() {
     }
 
     // Construct the gesture array
+    auto print_gesture = [&](const char name[], const Gesture &gesture) {
+        cout << name << endl;
+        cout << "Thumb:  " << static_cast<int>(gesture.thumb) << " degrees" << endl;
+        cout << "Index:  " << static_cast<int>(gesture.index) << " degrees" << endl;
+        cout << "Middle: " << static_cast<int>(gesture.middle) << " degrees" << endl;
+        cout << "Ring:   " << static_cast<int>(gesture.ring) << " degrees" << endl;
+        cout << "Pinky:  " << static_cast<int>(gesture.pinky) << " degrees" << endl;
+    };
     Gesture gestures[Gesture::COUNT]{};
     for (int i = 0; i < Gesture::COUNT; ++i) {
         averages[i][0] /= counts[i];
@@ -76,6 +84,8 @@ int main() {
         averages[i][4] /= counts[i];
         averages[i][5] /= counts[i];
         gestures[i] = Gesture(averages[i]);
+        print_gesture(Gesture::NAMES[i + 1], gestures[i]);
+        cout << counts[i] << " samples\n" << endl;
     }
 
     // Init SDL window, renderer, camera, and font
@@ -106,10 +116,10 @@ int main() {
     openpose.start();
     Hand left_hand{};
     Hand right_hand{};
-    Gesture left_gesture;
-    int left_symbol;
-    Gesture right_gesture;
-    int right_symbol;
+    Gesture left_gesture{};
+    int left_symbol = -1;
+    Gesture right_gesture{};
+    int right_symbol = -1;
 
     // Event loop
     bool run = true;
@@ -168,21 +178,25 @@ int main() {
                 capture = false;
                 Hand::scan(openpose, camera_surface, left_hand, right_hand);
                 // Locate gestures
-                auto find_gesture = [&](Gesture &gesture, const Hand &hand, int &symbol) {
+                auto find_gesture = [&](const char name[], Gesture &gesture, const Hand &hand, int &symbol) {
                     symbol = -1;
                     if (!hand.valid) {
                         return;
                     }
                     gesture = Gesture(hand);
+                    print_gesture(name, gesture);
+                    cout << endl;
+                    float success = 0.0f;
                     for (int i = 0; i < Gesture::COUNT; ++i) {
-                        if (gesture.compare(gestures[i], TOLERANCE_DEGREES) == 0) {
+                        float new_success = gesture.compare(gestures[i]);
+                        if (new_success > success && new_success > (1.0f - ERROR_TOLERANCE)) {
+                            success = new_success;
                             symbol = i;
-                            return;
                         }
                     }
                 };
-                find_gesture(left_gesture, left_hand, left_symbol);
-                find_gesture(right_gesture, right_hand, right_symbol);
+                find_gesture("left hand", left_gesture, left_hand, left_symbol);
+                find_gesture("right hand", right_gesture, right_hand, right_symbol);
             }
             SDL_ReleaseCameraFrame(camera, camera_surface);
         }

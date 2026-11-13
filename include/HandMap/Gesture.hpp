@@ -4,7 +4,7 @@
 
 #pragma once
 #include <cstddef>
-#include <cstdint>
+#include <cmath>
 #include <glm/glm.hpp>
 #include <HandMap/DataFrame.hpp>
 #include <HandMap/Hand.hpp>
@@ -14,7 +14,7 @@ namespace handmap {
         /** Constants */
         static constexpr size_t COUNT = DataFrame::ROW_COUNT / DataFrame::SYMBOL_COUNT;
         static constexpr char NAMES[COUNT + 1][8] = {
-            "unknown",
+            "unknown", // not recognized
             "0",
             "1",
             "2",
@@ -49,7 +49,7 @@ namespace handmap {
                 float wrist = glm::length(a[0]);
                 float finger = glm::length(a[sensor]);
                 float dot = glm::dot(a[0], a[sensor]) / (wrist * finger);
-                return glm::degrees(glm::acos(dot));
+                return glm::degrees(glm::acos(glm::clamp(dot, -1.0f, 1.0f)));
             };
             thumb = angle(1);
             index = angle(2);
@@ -67,41 +67,29 @@ namespace handmap {
             glm::vec2 pinky_base = glm::normalize(hand.pinky[0] - hand.wrist);
 
             // Aim direction (intermediate-out)
-            glm::vec2 thumb_dir = glm::normalize(hand.thumb[3] - hand.thumb[2]);
-            glm::vec2 index_dir = glm::normalize(hand.index[3] - hand.index[2]);
-            glm::vec2 middle_dir = glm::normalize(hand.middle[3] - hand.middle[2]);
-            glm::vec2 ring_dir = glm::normalize(hand.ring[3] - hand.ring[2]);
-            glm::vec2 pinky_dir = glm::normalize(hand.pinky[3] - hand.pinky[2]);
+            glm::vec2 thumb_dir = glm::normalize(hand.thumb[2] - hand.thumb[1]);
+            glm::vec2 index_dir = glm::normalize(hand.index[2] - hand.index[1]);
+            glm::vec2 middle_dir = glm::normalize(hand.middle[2] - hand.middle[1]);
+            glm::vec2 ring_dir = glm::normalize(hand.ring[2] - hand.ring[1]);
+            glm::vec2 pinky_dir = glm::normalize(hand.pinky[2] - hand.pinky[1]);
 
             // Normalized angles (degrees)
-            thumb = glm::degrees(glm::acos(glm::dot(thumb_base, thumb_dir)));
-            index = glm::degrees(glm::acos(glm::dot(index_base, index_dir)));
-            middle = glm::degrees(glm::acos(glm::dot(middle_base, middle_dir)));
-            ring = glm::degrees(glm::acos(glm::dot(ring_base, ring_dir)));
-            pinky = glm::degrees(glm::acos(glm::dot(pinky_base, pinky_dir)));
+            thumb = glm::degrees(glm::acos(glm::clamp(glm::dot(thumb_base, thumb_dir), -1.0f, 1.0f)));
+            index = glm::degrees(glm::acos(glm::clamp(glm::dot(index_base, index_dir), -1.0f, 1.0f)));
+            middle = glm::degrees(glm::acos(glm::clamp(glm::dot(middle_base, middle_dir), -1.0f, 1.0f)));
+            ring = glm::degrees(glm::acos(glm::clamp(glm::dot(ring_base, ring_dir), -1.0f, 1.0f)));
+            pinky = glm::degrees(glm::acos(glm::clamp(glm::dot(pinky_base, pinky_dir), -1.0f, 1.0f)));
         }
 
         /** Comparison */
-        static int fltcmp(float lhs, float rhs, float tolerance) {
-            float diff = rhs - lhs;
-            if (diff > tolerance) {
-                return 1;
-            }
-            if (diff < -tolerance) {
-                return -1;
-            }
-            return 0;
-        }
-
-        [[nodiscard]] uint64_t compare(const Gesture &gesture, float tolerance) const {
-            uint64_t result = 0;
-            auto array = reinterpret_cast<signed char *>(&result);
-            array[0] = static_cast<signed char>(fltcmp(gesture.thumb, thumb, tolerance));
-            array[1] = static_cast<signed char>(fltcmp(gesture.index, index, tolerance));
-            array[2] = static_cast<signed char>(fltcmp(gesture.middle, middle, tolerance));
-            array[3] = static_cast<signed char>(fltcmp(gesture.ring, ring, tolerance));
-            array[4] = static_cast<signed char>(fltcmp(gesture.pinky, pinky, tolerance));
-            return result;
+        [[nodiscard]] float compare(const Gesture &gesture) const {
+            float result = 0.0f;
+            result += std::fabs(gesture.thumb - thumb);
+            result += std::fabs(gesture.index - index);
+            result += std::fabs(gesture.middle - middle);
+            result += std::fabs(gesture.ring - ring);
+            result += std::fabs(gesture.pinky - pinky);
+            return 1.0f - (result / (5.0f * 180.0f));
         }
     };
 }
