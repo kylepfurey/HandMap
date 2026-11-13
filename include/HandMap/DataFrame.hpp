@@ -3,6 +3,7 @@
 // by Kyle Furey
 
 #pragma once
+#include <cstddef>
 #include <glm/glm.hpp>
 
 namespace handmap {
@@ -11,18 +12,7 @@ namespace handmap {
         static constexpr char CSV_NAME[] = "hand-gesture-data.csv";
         static constexpr size_t COLUMN_COUNT = 37;
         static constexpr size_t ROW_COUNT = 10000;
-        static constexpr char GESTURE_NAMES[10][6] = {
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-            "TODO",
-        };
+        static constexpr size_t SYMBOL_COUNT = 1000;
 
         /** Columns */
         int symbol;

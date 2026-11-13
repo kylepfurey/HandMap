@@ -6,6 +6,7 @@
 #include <memory>
 #include <array>
 #include <vector>
+#include <stdexcept>
 #include <SDL3/SDL.h>
 #include <glm/glm.hpp>
 #include <opencv2/core.hpp>
@@ -34,18 +35,18 @@ namespace handmap {
             auto datums = std::make_shared<std::vector<std::shared_ptr<op::Datum> > >();
             datums->emplace_back(std::make_shared<op::Datum>());
             auto &datum = datums->at(0);
-            float camera_width = static_cast<float>(bgr->w);
-            float camera_height = static_cast<float>(bgr->h);
+            auto camera_width = static_cast<float>(bgr->w);
+            auto camera_height = static_cast<float>(bgr->h);
             float half_width = camera_width / 2.0f;
             float size = half_width < camera_height ? half_width : camera_height;
-            float y = (camera_height - size) / 2.0f;
-            op::Rectangle<float> left_rect{0.0f, y, size, size};
-            op::Rectangle<float> right_rect{camera_width - size, y, size, size};
+            float height = (camera_height - size) / 2.0f;
+            op::Rectangle<float> left_rect{0.0f, height, size, size};
+            op::Rectangle<float> right_rect{camera_width - size, height, size, size};
             datum->handRectangles.emplace_back(std::array<op::Rectangle<float>, 2>{right_rect, left_rect});
             datum->cvInputData = OP_CV2OPCONSTMAT(matrix);
             if (openpose.emplaceAndPop(datums) && datums != nullptr && !datums->empty()) {
                 auto &keypoints = datums->at(0)->handKeypoints;
-                const float tolerance = 0.25f;
+                constexpr float tolerance = 0.25f;
                 auto make_hand = [&](int keypoint, Hand &hand) {
                     hand.valid = false;
                     if (!keypoints[keypoint].empty()) {
@@ -98,7 +99,9 @@ namespace handmap {
                 case 18: return pinky[1];
                 case 19: return pinky[2];
                 case 20: return pinky[3];
+                default: break ;
             }
+            throw std::out_of_range("i > 20");
         }
     };
 }

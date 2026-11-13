@@ -2,7 +2,6 @@
 // Hand Gesture Mapping Visualizer
 // by Kyle Furey
 
-#include <iostream>
 #include <sstream>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -10,8 +9,9 @@
 #include <fast-cpp-csv-parser/csv.h>
 #include <opencv2/core.hpp>
 #include <openpose/headers.hpp>
-#include <DataFrame.hpp>
-#include <Hand.hpp>
+#include <HandMap/DataFrame.hpp>
+#include <HandMap/Hand.hpp>
+#include <HandMap/Gesture.hpp>
 
 using namespace std;
 using namespace glm;
@@ -29,15 +29,49 @@ namespace handmap {
 }
 
 /** Demo program */
-int main(int argc, char *argv[]) {
+int main() {
     // Load each column from the CSV
     CSVReader<DataFrame::COLUMN_COUNT> csv(DataFrame::CSV_NAME);
     DataFrame data{};
     csv.read_header(ignore_no_column, HANDMAP_DATAFRAME_HEADER);
 
-    // Iterate each row
-    while (csv.read_row(HANDMAP_DATAFRAME_EXPAND(data))) {
-        // TODO - Build tree data structure
+    // Iterate each row and compute gesture averages
+    DataFrame averages[Gesture::COUNT]{};
+    for (int i = 0, j = 0; csv.read_row(HANDMAP_DATAFRAME_EXPAND(data));) {
+        averages[j].a[0] += data.a[0];
+        averages[j].a[1] += data.a[1];
+        averages[j].a[2] += data.a[2];
+        averages[j].a[3] += data.a[3];
+        averages[j].a[4] += data.a[4];
+        averages[j].a[5] += data.a[5];
+        averages[j].g[0] += data.g[0];
+        averages[j].g[1] += data.g[1];
+        averages[j].g[2] += data.g[2];
+        averages[j].g[3] += data.g[3];
+        averages[j].g[4] += data.g[4];
+        averages[j].g[5] += data.g[5];
+        ++i;
+        if (i == DataFrame::SYMBOL_COUNT) {
+            i = 0;
+            ++j;
+        }
+    }
+    // Construct the gesture array
+    Gesture gestures[Gesture::COUNT]{};
+    for (int i = 0; i < Gesture::COUNT; ++i) {
+        averages[i].a[0] /= DataFrame::SYMBOL_COUNT;
+        averages[i].a[1] /= DataFrame::SYMBOL_COUNT;
+        averages[i].a[2] /= DataFrame::SYMBOL_COUNT;
+        averages[i].a[3] /= DataFrame::SYMBOL_COUNT;
+        averages[i].a[4] /= DataFrame::SYMBOL_COUNT;
+        averages[i].a[5] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[0] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[1] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[2] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[3] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[4] /= DataFrame::SYMBOL_COUNT;
+        averages[i].g[5] /= DataFrame::SYMBOL_COUNT;
+        gestures[i] = Gesture(averages[i].a, averages[i].g);
     }
 
     // Init SDL window, renderer, camera, and font
@@ -68,6 +102,10 @@ int main(int argc, char *argv[]) {
     openpose.start();
     Hand left_hand{};
     Hand right_hand{};
+    Gesture left_gesture;
+    int left_symbol;
+    Gesture right_gesture;
+    int right_symbol;
 
     // Event loop
     bool run = true;
@@ -103,8 +141,8 @@ int main(int argc, char *argv[]) {
         int temp_width;
         int temp_height;
         SDL_GetWindowSize(window, &temp_width, &temp_height);
-        float window_width = static_cast<float>(temp_width);
-        float window_height = static_cast<float>(temp_height);
+        auto window_width = static_cast<float>(temp_width);
+        auto window_height = static_cast<float>(temp_height);
         float width_ratio = static_cast<float>(temp_width) / WINDOW_WIDTH;
         float height_ratio = static_cast<float>(temp_height) / WINDOW_HEIGHT;
 
@@ -125,6 +163,22 @@ int main(int argc, char *argv[]) {
             if (capture) {
                 capture = false;
                 Hand::scan(openpose, camera_surface, left_hand, right_hand);
+                // Locate gestures
+                auto find_gesture = [&](Gesture &gesture, const Hand &hand, int &symbol) {
+                    symbol = -1;
+                    if (!hand.valid) {
+                        return;
+                    }
+                    gesture = Gesture(hand);
+                    for (int i = 0; i < Gesture::COUNT; ++i) {
+                        if (gesture.compare(gestures[i]) == 0) {
+                            symbol = i;
+                            return;
+                        }
+                    }
+                };
+                find_gesture(left_gesture, left_hand, left_symbol);
+                find_gesture(right_gesture, right_hand, right_symbol);
             }
             SDL_ReleaseCameraFrame(camera, camera_surface);
         }
@@ -133,7 +187,7 @@ int main(int argc, char *argv[]) {
         }
 
         // Render left and right hand joints to the screen
-        auto draw_hand = [=](const Hand &hand) {
+        auto draw_hand = [&](const Hand &hand) {
             SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.thumb[0].x, hand.thumb[0].y);
             SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.index[0].x, hand.index[0].y);
             SDL_RenderLine(renderer, hand.wrist.x, hand.wrist.y, hand.middle[0].x, hand.middle[0].y);
@@ -142,20 +196,21 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < 3; ++i) {
                 SDL_RenderLine(renderer, hand.thumb[i].x, hand.thumb[i].y, hand.thumb[i + 1].x, hand.thumb[i + 1].y);
                 SDL_RenderLine(renderer, hand.index[i].x, hand.index[i].y, hand.index[i + 1].x, hand.index[i + 1].y);
-                SDL_RenderLine(renderer, hand.middle[i].x, hand.middle[i].y, hand.middle[i + 1].x, hand.middle[i + 1].y);
+                SDL_RenderLine(renderer, hand.middle[i].x, hand.middle[i].y, hand.middle[i + 1].x,
+                               hand.middle[i + 1].y);
                 SDL_RenderLine(renderer, hand.ring[i].x, hand.ring[i].y, hand.ring[i + 1].x, hand.ring[i + 1].y);
                 SDL_RenderLine(renderer, hand.pinky[i].x, hand.pinky[i].y, hand.pinky[i + 1].x, hand.pinky[i + 1].y);
             }
         };
         if (left_hand.valid) {
             SDL_SetRenderScale(renderer, window_width / camera_width, window_height / camera_height);
-            SDL_SetRenderDrawColorFloat(renderer, 0.0f, 0.0f, 1.0f, 1.0f);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
             draw_hand(left_hand);
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
         if (right_hand.valid) {
             SDL_SetRenderScale(renderer, window_width / camera_width, window_height / camera_height);
-            SDL_SetRenderDrawColorFloat(renderer, 1.0f, 0.0f, 0.0f, 1.0f);
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
             draw_hand(right_hand);
             SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         }
@@ -164,14 +219,14 @@ int main(int argc, char *argv[]) {
         stringstream text;
         if (left_hand.valid) {
             if (right_hand.valid) {
-                text << "Both Hands Found"; // TODO - Replace with gesture names
+                text << "Right: " << Gesture::NAMES[right_symbol + 1] << " - Left: " << Gesture::NAMES[left_symbol + 1];
             } else {
-                text << "Left Hand Found"; // TODO - Replace with gesture names
+                text << "No right hand - Left: " << Gesture::NAMES[left_symbol + 1];
             }
         } else if (right_hand.valid) {
-            text << "Right Hand Found"; // TODO - Replace with gesture names
+            text << "Right: " << Gesture::NAMES[right_symbol + 1] << " - No left hand";
         } else {
-            text << "No Hands On Screen";
+            text << "Press spacebar with hands on screen";
         }
         SDL_Surface *text_surface = TTF_RenderText_Blended(
             font,
@@ -180,8 +235,8 @@ int main(int argc, char *argv[]) {
             SDL_Color{255, 255, 255, 255}
         );
         SDL_Texture *text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-        float text_width = static_cast<float>(text_surface->w);
-        float text_height = static_cast<float>(text_surface->h);
+        auto text_width = static_cast<float>(text_surface->w);
+        auto text_height = static_cast<float>(text_surface->h);
         SDL_FRect text_rect{
             (window_width - text_width * width_ratio) / 2.0f,
             0.0f,
