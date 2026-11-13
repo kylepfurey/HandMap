@@ -2,6 +2,7 @@
 // Hand Gesture Mapping Visualizer
 // by Kyle Furey
 
+#include <iostream>
 #include <sstream>
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -26,6 +27,8 @@ namespace handmap {
     static constexpr float WINDOW_HEIGHT = 1080.0f;
     static constexpr char FONT_NAME[] = "calibri.ttf";
     static constexpr int FONT_SIZE = 64;
+    constexpr float TOLERANCE_RADS = 0.3f;
+    constexpr float TOLERANCE_DEGREES = 45.0f;
 }
 
 /** Demo program */
@@ -35,43 +38,44 @@ int main() {
     DataFrame data{};
     csv.read_header(ignore_no_column, HANDMAP_DATAFRAME_HEADER);
 
-    // Iterate each row and compute gesture averages
-    DataFrame averages[Gesture::COUNT]{};
+    // Iterate each row and compute gesture averages (when not moving)
+    int counts[Gesture::COUNT]{};
+    vec3 averages[Gesture::COUNT][6]{};
     for (int i = 0, j = 0; csv.read_row(HANDMAP_DATAFRAME_EXPAND(data));) {
-        averages[j].a[0] += data.a[0];
-        averages[j].a[1] += data.a[1];
-        averages[j].a[2] += data.a[2];
-        averages[j].a[3] += data.a[3];
-        averages[j].a[4] += data.a[4];
-        averages[j].a[5] += data.a[5];
-        averages[j].g[0] += data.g[0];
-        averages[j].g[1] += data.g[1];
-        averages[j].g[2] += data.g[2];
-        averages[j].g[3] += data.g[3];
-        averages[j].g[4] += data.g[4];
-        averages[j].g[5] += data.g[5];
+        float average = 0.0f;
+        average += length(data.g[0]);
+        average += length(data.g[1]);
+        average += length(data.g[2]);
+        average += length(data.g[3]);
+        average += length(data.g[4]);
+        average += length(data.g[5]);
+        average /= 6;
+        if (average <= TOLERANCE_RADS) {
+            averages[j][0] += data.a[0];
+            averages[j][1] += data.a[1];
+            averages[j][2] += data.a[2];
+            averages[j][3] += data.a[3];
+            averages[j][4] += data.a[4];
+            averages[j][5] += data.a[5];
+            ++counts[j];
+        }
         ++i;
         if (i == DataFrame::SYMBOL_COUNT) {
             i = 0;
             ++j;
         }
     }
+
     // Construct the gesture array
     Gesture gestures[Gesture::COUNT]{};
     for (int i = 0; i < Gesture::COUNT; ++i) {
-        averages[i].a[0] /= DataFrame::SYMBOL_COUNT;
-        averages[i].a[1] /= DataFrame::SYMBOL_COUNT;
-        averages[i].a[2] /= DataFrame::SYMBOL_COUNT;
-        averages[i].a[3] /= DataFrame::SYMBOL_COUNT;
-        averages[i].a[4] /= DataFrame::SYMBOL_COUNT;
-        averages[i].a[5] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[0] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[1] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[2] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[3] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[4] /= DataFrame::SYMBOL_COUNT;
-        averages[i].g[5] /= DataFrame::SYMBOL_COUNT;
-        gestures[i] = Gesture(averages[i].a, averages[i].g);
+        averages[i][0] /= counts[i];
+        averages[i][1] /= counts[i];
+        averages[i][2] /= counts[i];
+        averages[i][3] /= counts[i];
+        averages[i][4] /= counts[i];
+        averages[i][5] /= counts[i];
+        gestures[i] = Gesture(averages[i]);
     }
 
     // Init SDL window, renderer, camera, and font
@@ -171,8 +175,7 @@ int main() {
                     }
                     gesture = Gesture(hand);
                     for (int i = 0; i < Gesture::COUNT; ++i) {
-                        constexpr float TOLERANCE = 45.0f; // degrees
-                        if (gesture.compare(gestures[i], TOLERANCE) == 0) {
+                        if (gesture.compare(gestures[i], TOLERANCE_DEGREES) == 0) {
                             symbol = i;
                             return;
                         }

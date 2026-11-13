@@ -43,8 +43,7 @@ namespace handmap {
               pinky(0.0f) {
         }
 
-        Gesture(const glm::vec3 a[6], const glm::vec3 g[6]) {
-            (void) g;
+        explicit Gesture(const glm::vec3 a[6]) {
             // Compute angle from accelerometer
             auto angle = [&](int sensor) {
                 float wrist = glm::length(a[0]);
