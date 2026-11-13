@@ -43,13 +43,20 @@ namespace handmap {
               pinky(0.0f) {
         }
 
-        Gesture(const glm::vec3 a[6], const glm::vec3 g[6])
-            : thumb(0.0f),
-              index(0.0f),
-              middle(0.0f),
-              ring(0.0f),
-              pinky(0.0f) {
-            // TODO - Construct gesture from accelerometer and gyroscope
+        Gesture(const glm::vec3 a[6], const glm::vec3 g[6]) {
+            (void) g;
+            // Compute angle from accelerometer
+            auto angle = [&](int sensor) {
+                float wrist = glm::length(a[0]);
+                float finger = glm::length(a[sensor]);
+                float dot = glm::dot(a[0], a[sensor]) / (wrist * finger);
+                return glm::degrees(glm::acos(dot));
+            };
+            thumb = angle(1);
+            index = angle(2);
+            middle = angle(3);
+            ring = angle(4);
+            pinky = angle(5);
         }
 
         explicit Gesture(const Hand &hand) {
@@ -87,7 +94,7 @@ namespace handmap {
             return 0;
         }
 
-        [[nodiscard]] uint64_t compare(const Gesture &gesture, float tolerance = 25.0f) const {
+        [[nodiscard]] uint64_t compare(const Gesture &gesture, float tolerance) const {
             uint64_t result = 0;
             auto array = reinterpret_cast<signed char *>(&result);
             array[0] = static_cast<signed char>(fltcmp(gesture.thumb, thumb, tolerance));

@@ -171,7 +171,8 @@ int main() {
                     }
                     gesture = Gesture(hand);
                     for (int i = 0; i < Gesture::COUNT; ++i) {
-                        if (gesture.compare(gestures[i]) == 0) {
+                        constexpr float TOLERANCE = 45.0f; // degrees
+                        if (gesture.compare(gestures[i], TOLERANCE) == 0) {
                             symbol = i;
                             return;
                         }

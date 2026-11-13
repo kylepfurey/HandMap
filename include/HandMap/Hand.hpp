@@ -46,7 +46,7 @@ namespace handmap {
             datum->cvInputData = OP_CV2OPCONSTMAT(matrix);
             if (openpose.emplaceAndPop(datums) && datums != nullptr && !datums->empty()) {
                 auto &keypoints = datums->at(0)->handKeypoints;
-                constexpr float tolerance = 0.25f;
+                constexpr float TOLERANCE = 0.25f;
                 auto make_hand = [&](int keypoint, Hand &hand) {
                     hand.valid = false;
                     if (!keypoints[keypoint].empty()) {
@@ -60,7 +60,7 @@ namespace handmap {
                             hand.vec2array(i) = glm::vec2{x, y};
                         }
                         average /= 21;
-                        if (average > tolerance) {
+                        if (average > TOLERANCE) {
                             hand.valid = true;
                         }
                     }
