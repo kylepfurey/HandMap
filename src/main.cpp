@@ -1,4 +1,4 @@
-// .hpp
+// .cpp
 // Hand Gesture Mapping Visualizer
 // by Kyle Furey
 
@@ -27,7 +27,7 @@ namespace handmap {
     static constexpr float WINDOW_HEIGHT = 1080.0f;
     static constexpr char FONT_NAME[] = "calibri.ttf";
     static constexpr int FONT_SIZE = 64;
-    constexpr float RADS_TOLERANCE = 0.3f;
+    constexpr float RADS_TOLERANCE = 0.1f;
     constexpr float ERROR_TOLERANCE = 0.25f;
 }
 

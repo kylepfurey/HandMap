@@ -13,18 +13,18 @@ namespace handmap {
     struct Gesture final {
         /** Constants */
         static constexpr size_t COUNT = DataFrame::ROW_COUNT / DataFrame::SYMBOL_COUNT;
-        static constexpr char NAMES[COUNT + 1][8] = {
+        static constexpr char NAMES[COUNT + 1][10] = {
             "unknown", // not recognized
-            "0",
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
+            "symbol 0", // unsure
+            "symbol 1", // unsure
+            "symbol 2", // unsure
+            "symbol 3", // unsure
+            "thumbs up",
+            "palm",
+            "pinky",
+            "four",
+            "shaka",
+            "symbol 9", // unsure
         };
 
         /** Angles (degrees) */
